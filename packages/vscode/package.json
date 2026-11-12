@@ -3,8 +3,16 @@
   "displayName": "Killport",
   "description": "See every listening port and which process (and project) holds it, right next to your terminal. Kill it in one click. Also exposes an MCP server so AI agents can do the same.",
   "version": "0.1.0",
-  "publisher": "killport",
+  "publisher": "JoroGeorgiev",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jorka/killport.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jorka/killport/issues"
+  },
+  "homepage": "https://github.com/jorka/killport#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -271,7 +279,7 @@
   "scripts": {
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
-    "package": "node esbuild.mjs --minify && vsce package --no-dependencies --allow-missing-repository",
+    "package": "node esbuild.mjs --minify && vsce package --no-dependencies",
     "test:integration": "node esbuild.mjs && node test/runTest.mjs"
   },
   "devDependencies": {

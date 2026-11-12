@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "MCP server that lets AI agents (Claude Code, Codex, Cursor, Gemini CLI, Copilot...) list listening ports and kill the process holding one.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jorka/killport.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/jorka/killport/issues"
+  },
+  "homepage": "https://github.com/jorka/killport#readme",
   "bin": {
     "killport-mcp": "dist/server.js"
   },

@@ -2,18 +2,8 @@
 
 ## One-time setup (needs your accounts)
 
-1. **Publisher.** Create a publisher at https://marketplace.visualstudio.com/manage and put its ID in
-   `packages/vscode/package.json` → `"publisher"` (currently the placeholder `killport`).
-   The extension ID becomes `<publisher>.killport`; also update `EXT_ID` in
-   `packages/vscode/test/suite/extension.test.js`.
-2. **Repository.** Push to GitHub, then add to both `packages/vscode/package.json` and
-   `packages/mcp/package.json`:
-   ```json
-   "repository": { "type": "git", "url": "https://github.com/<you>/killport" },
-   "bugs": "https://github.com/<you>/killport/issues",
-   "homepage": "https://github.com/<you>/killport#readme"
-   ```
-   and remove `--allow-missing-repository` from the `package` script in `packages/vscode/package.json`.
+1. **Publisher:** `JoroGeorgiev` (set in `packages/vscode/package.json`; extension ID `JoroGeorgiev.killport`).
+2. **Repository:** https://github.com/jorka/killport (set in both `package.json` files).
 3. **Secrets** (GitHub → Settings → Secrets → Actions). Any that are missing are skipped:
    - `VSCE_PAT`: Azure DevOps token with *Marketplace → Manage* scope
    - `OVSX_PAT`: token from https://open-vsx.org (Cursor, Windsurf, VSCodium install from there)

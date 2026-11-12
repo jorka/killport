@@ -49,7 +49,7 @@ args = ["-y", "killport-mcp"]
 }
 ```
 
-**VS Code / GitHub Copilot**: install the [Killport extension](https://marketplace.visualstudio.com/search?term=killport&target=VSCode); it registers this server automatically (VS Code 1.101+), along with a panel that shows the same information.
+**VS Code / GitHub Copilot**: install the [Killport extension](https://marketplace.visualstudio.com/items?itemName=JoroGeorgiev.killport); it registers this server automatically (VS Code 1.101+), along with a panel that shows the same information.
 
 Requires Node.js 18 or newer.
 

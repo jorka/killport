@@ -5,7 +5,7 @@ const net = require('node:net');
 const path = require('node:path');
 const vscode = require('vscode');
 
-const EXT_ID = 'killport.killport';
+const EXT_ID = 'JoroGeorgiev.killport';
 // The extension host runs on Electron; this env makes the same binary behave like plain node.
 const NODE_ENV = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
 
