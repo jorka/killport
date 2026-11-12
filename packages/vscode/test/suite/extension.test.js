@@ -9,6 +9,18 @@ const EXT_ID = 'JoroGeorgiev.killport';
 // The extension host runs on Electron; this env makes the same binary behave like plain node.
 const NODE_ENV = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
 
+// Newer terminal APIs: reading them on old VS Code (where they were proposals) throws, so guard the read.
+const hasShellApis = () => {
+  try {
+    // On 1.90-1.92 these exist but subscribing throws (they were proposals), so actually subscribe.
+    vscode.window.onDidStartTerminalShellExecution(() => {}).dispose();
+    vscode.window.onDidChangeTerminalShellIntegration(() => {}).dispose();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn, timeoutMs = 10000, what = 'condition') {
@@ -234,7 +246,7 @@ require('http').createServer((q, s) => s.end('ok')).listen(port, '127.0.0.1');`;
     before(() => fs.writeFileSync(path.join(process.env.KILLPORT_TEST_WORKSPACE, 'server.js'), serverJs));
 
     it('restarts a server running in a VS Code terminal on the new port, in the same terminal', async function () {
-      if (!vscode.window.onDidStartTerminalShellExecution) this.skip();
+      if (!hasShellApis()) this.skip(); // VS Code < 1.93
       this.timeout(60000);
       const [from, to] = [await freePort(), await freePort()];
       const terminal = vscode.window.createTerminal({ name: 'app', cwd: process.env.KILLPORT_TEST_WORKSPACE, ...(process.platform === 'win32' ? {} : { shellPath: '/bin/bash' }) });
@@ -366,7 +378,7 @@ require('http').createServer((q, s) => s.end('ok')).listen(port, '127.0.0.1');`;
   });
 
   it('detects "port already in use" in the terminal', async function () {
-    if (!vscode.window.onDidStartTerminalShellExecution || !vscode.window.onDidChangeTerminalShellIntegration) this.skip(); // VS Code < 1.93
+    if (!hasShellApis()) this.skip(); // VS Code < 1.93
     this.timeout(60000);
 
     const port = await freePort();

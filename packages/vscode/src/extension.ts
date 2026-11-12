@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { PortEntry } from '@killport/core';
 import { PortStore, remoteHostLabel } from './store';
+import { optionalApi } from './optionalApi';
 import { PortsViewProvider, openInBrowser } from './PortsViewProvider';
 import { entryLabel, killEntry } from './kill';
 import { editPortLabel, getPortLabels } from './labels';
@@ -169,15 +170,17 @@ async function pickAndKill(store: PortStore, port?: number): Promise<void> {
 function registerMcpServer(ctx: vscode.ExtensionContext): void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const api = vscode as any;
-  if (typeof api.lm?.registerMcpServerDefinitionProvider !== 'function' || typeof api.McpStdioServerDefinition !== 'function') return;
+  const register = optionalApi(() => api.lm?.registerMcpServerDefinitionProvider);
+  const Definition = optionalApi(() => api.McpStdioServerDefinition);
+  if (typeof register !== 'function' || typeof Definition !== 'function') return; // VS Code < 1.101
   const serverPath = vscode.Uri.joinPath(ctx.extensionUri, 'dist', 'mcp-server.js').fsPath;
   const version = String(ctx.extension.packageJSON.version ?? '0.0.0');
   try {
     ctx.subscriptions.push(
-      api.lm.registerMcpServerDefinitionProvider('killport.mcp', {
+      register.call(api.lm, 'killport.mcp', {
         provideMcpServerDefinitions: () => [
           // Run the server with VS Code's bundled Node runtime so users don't need Node installed.
-          new api.McpStdioServerDefinition('Killport', process.execPath, [serverPath], { ELECTRON_RUN_AS_NODE: '1' }, version),
+          new Definition('Killport', process.execPath, [serverPath], { ELECTRON_RUN_AS_NODE: '1' }, version),
         ],
       }),
     );

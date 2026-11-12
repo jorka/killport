@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { optionalEvent } from './optionalApi';
 import { homedir } from 'node:os';
 import { findFreePort, listPorts, parsePortConflict, portFromCommand, rewriteCommandForPort, type PortConflict, type PortEntry } from '@killport/core';
 import { entryLabel, killEntry } from './kill';
@@ -64,31 +65,33 @@ export function registerTerminalWatch(
 ): vscode.Event<DetectedConflict> {
   const detected = new vscode.EventEmitter<DetectedConflict>();
   ctx.subscriptions.push(detected);
-  const api = vscode.window as unknown as ShellApi;
-  if (!api.onDidStartTerminalShellExecution || !api.onDidEndTerminalShellExecution) return detected.event;
-
+  const win = vscode.window as unknown as ShellApi;
   const ended = new WeakMap<ShellExecution, () => void>();
   const endPromises = new WeakMap<ShellExecution, Promise<void>>();
   const lastAsked = new Map<number, number>();
 
-  ctx.subscriptions.push(
-    api.onDidEndTerminalShellExecution((e) => {
-      ended.get(e.execution)?.();
-      if (runningCommands.get(e.terminal)?.execution === e.execution) runningCommands.delete(e.terminal);
-    }),
-    api.onDidStartTerminalShellExecution((e) => {
-      const endPromise = new Promise<void>((resolve) => ended.set(e.execution, resolve));
-      endPromises.set(e.execution, endPromise);
-      // Remember what runs in each terminal (used by "Move to another port" to restart it).
-      runningCommands.set(e.terminal, {
-        execution: e.execution,
-        info: { commandLine: e.execution.commandLine.value.trim(), confident: e.execution.commandLine.confidence === HIGH_CONFIDENCE, ended: endPromise },
-      });
-      if (!vscode.workspace.getConfiguration('killport').get<boolean>('detectPortConflicts', true)) return;
-      void scan(e);
-    }),
-    vscode.window.onDidCloseTerminal((t) => runningCommands.delete(t)),
-  );
+  const endSub = optionalEvent<ShellExecutionEvent>(() => win.onDidEndTerminalShellExecution, (e) => {
+    ended.get(e.execution)?.();
+    if (runningCommands.get(e.terminal)?.execution === e.execution) runningCommands.delete(e.terminal);
+  });
+  const startSub = optionalEvent<ShellExecutionEvent>(() => win.onDidStartTerminalShellExecution, (e) => {
+    const endPromise = new Promise<void>((resolve) => ended.set(e.execution, resolve));
+    endPromises.set(e.execution, endPromise);
+    // Remember what runs in each terminal (used by "Move to another port" to restart it).
+    runningCommands.set(e.terminal, {
+      execution: e.execution,
+      info: { commandLine: e.execution.commandLine.value.trim(), confident: e.execution.commandLine.confidence === HIGH_CONFIDENCE, ended: endPromise },
+    });
+    if (!vscode.workspace.getConfiguration('killport').get<boolean>('detectPortConflicts', true)) return;
+    void scan(e);
+  });
+  if (!endSub || !startSub) {
+    // VS Code < 1.93: shell execution events missing or still a proposal. Everything else still works.
+    endSub?.dispose();
+    startSub?.dispose();
+    return detected.event;
+  }
+  ctx.subscriptions.push(endSub as vscode.Disposable, startSub as vscode.Disposable, vscode.window.onDidCloseTerminal((t) => runningCommands.delete(t)));
 
   return detected.event;
 
