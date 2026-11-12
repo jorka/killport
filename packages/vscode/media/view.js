@@ -400,7 +400,7 @@
                 ws && h('span', { class: 'badge', text: 'this workspace', title: ws }),
                 h('a', {
                   href: '#',
-                  title: `Reveal ${e.cwd}`,
+                  title: e.cwdGuessed ? `Reveal ${e.cwd}\n(Folder inferred from the command line or terminal: Windows doesn't report it)` : `Reveal ${e.cwd}`,
                   text: tildify(e.cwd),
                   onclick: (/** @type {Event} */ ev) => {
                     ev.preventDefault();

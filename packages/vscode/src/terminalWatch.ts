@@ -103,7 +103,8 @@ export function registerTerminalWatch(
         scanned += chunk.length;
         // Keep a little of the previous chunk so a message split across chunks is still found.
         buffer = (buffer.slice(-512) + chunk).slice(-8192);
-        const conflict = parsePortConflict(buffer);
+        // Windows terminals (conpty) hard-wrap long lines, which can split the port in two; retry unwrapped.
+        const conflict = parsePortConflict(buffer) ?? parsePortConflict(buffer.replace(/\r?\n/g, ''));
         if (conflict) {
           await onConflict(e, conflict);
           return; // one prompt per run

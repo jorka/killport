@@ -1,5 +1,6 @@
 import { getUnixCwds, getUnixPsInfo, listUnixListeners } from './unix';
 import { getWindowsProcesses, lastTasklist, listWindowsListeners } from './windows';
+import { guessCwdFromCommand } from './guessCwd';
 import { killPid, type KillOptions } from './kill';
 import { getProtectedPids } from './safety';
 import { getContainersByPort, isContainerRuntime, parseDockerUptime, stopContainer } from './docker';
@@ -12,6 +13,7 @@ export { parseEtime, parsePsInfo } from './unix';
 export { probeHttp, probeHost, shouldProbeHttp, type HttpScheme } from './http';
 export { appOrSystemKind, isAppOrSystem, type HiddenKind } from './appFilter';
 export { addressFamily, findSharedPorts, type AddressFamily, type SharedPort } from './shared';
+export { guessCwdFromCommand, pathFromCommand, splitWindowsArgs } from './guessCwd';
 export { rewriteCommandForPort, detectTool, withPortEnv, type PortRewrite, type ShellKind } from './portSwitch';
 export { canBind, isPortFree, findFreePort, waitForPort, type FindFreePortOptions, type FindFreePortResult, type WaitForPortOptions, type WaitForPortResult } from './availability';
 export { isContainerRuntime, stopContainer, parseDockerPs, parsePublishedPorts, parseDockerUptime } from './docker';
@@ -135,13 +137,15 @@ async function enrichWindows(entries: PortEntry[], pids: number[]): Promise<void
     const procs = await getWindowsProcesses(missing);
     for (const pid of missing) {
       const p = procs.get(pid);
-      cacheSet(pid, { identity: identity(pid), command: p?.command, startedAt: p?.startedAt });
+      cacheSet(pid, { identity: identity(pid), command: p?.command, startedAt: p?.startedAt, cwd: guessCwdFromCommand(p?.command) });
     }
   }
   for (const e of entries) {
     const c = procCache.get(e.pid);
     e.command = c?.command;
     e.startedAt = c?.startedAt;
+    e.cwd = c?.cwd;
+    e.cwdGuessed = c?.cwd ? true : undefined;
     e.memoryKB = lastTasklist.get(e.pid)?.memoryKB;
   }
 }
@@ -149,7 +153,7 @@ async function enrichWindows(entries: PortEntry[], pids: number[]): Promise<void
 /** Lists every listening TCP port with its owning process. */
 export async function listPorts(opts: ListOptions = {}): Promise<PortEntry[]> {
   const isWin = process.platform === 'win32';
-  const raw = isWin ? await listWindowsListeners() : await listUnixListeners();
+  const raw = isWin ? await listWindowsListeners({ names: opts.enrich !== false }) : await listUnixListeners();
   const entries = mergeListeners(raw, opts);
   if (opts.enrich === false || entries.length === 0) return entries;
 

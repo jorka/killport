@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { isInWorkspace } from './workspaceServers';
+import { optionalApi } from './optionalApi';
 import { ancestorChain, getParentMap, getProtectedPids, isAppOrSystem, listPorts, parseRange, probeHttp, shouldProbeHttp, type PortEntry } from '@killport/core';
 
 export interface Snapshot {
@@ -134,13 +135,23 @@ export class PortStore implements vscode.Disposable {
     );
     if (shells.size === 0) return;
     const maxAge = process.platform === 'win32' ? 15_000 : 0;
-    if (!this.parentCache || Date.now() - this.parentCache.at > maxAge) this.parentCache = { at: Date.now(), map: await getParentMap() };
+    const cached = this.parentCache;
+    const fresh = cached && Date.now() - cached.at <= maxAge && candidates.every((e) => cached.map.has(e.pid)); // new processes force a refresh
+    const parents = fresh ? cached.map : await getParentMap();
+    if (!fresh) this.parentCache = { at: Date.now(), map: parents };
     for (const e of candidates) {
-      for (const pid of ancestorChain(e.pid, this.parentCache.map)) {
+      for (const pid of ancestorChain(e.pid, parents)) {
         const t = shells.get(pid);
         if (t) {
           this.terminalsByPid.set(e.pid, t);
           e.terminal = t.name;
+          if (!e.cwd) {
+            const cwd = terminalCwd(t);
+            if (cwd) {
+              e.cwd = cwd;
+              e.cwdGuessed = true;
+            }
+          }
           break;
         }
       }
@@ -218,4 +229,13 @@ export function viewFilters(): { hideApps: boolean; workspaceOnly: boolean; hasW
     workspaceOnly: hasWorkspace && cfg.get<boolean>('workspaceOnly', false),
     hasWorkspace,
   };
+}
+
+/** The folder a terminal is in: from shell integration (follows `cd`), else the folder it was opened in. */
+function terminalCwd(t: vscode.Terminal): string | undefined {
+  const live = optionalApi(() => (t as unknown as { shellIntegration?: { cwd?: vscode.Uri } }).shellIntegration?.cwd?.fsPath);
+  if (live) return live;
+  const opened = (t.creationOptions as vscode.TerminalOptions).cwd;
+  if (typeof opened === 'string') return opened;
+  return opened?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }

@@ -93,14 +93,16 @@ export function parseCimProcesses(out: string): Map<number, WinProcessInfo> {
 /** Image name + memory from the last tasklist call (reused by listPorts for the memory column). */
 export let lastTasklist = new Map<number, TasklistInfo>();
 
-export async function listWindowsListeners(): Promise<RawListener[]> {
+export async function listWindowsListeners(opts: { names?: boolean } = {}): Promise<RawListener[]> {
+  // tasklist is the slow part; skip it when only "is something listening?" matters (wait_for_port polling).
+  const names = opts.names ?? true;
   const [ns, tl] = await Promise.all([
     run('netstat', ['-ano', '-p', 'TCP']),
-    run('tasklist', ['/FO', 'CSV', '/NH']).catch(() => ({ stdout: '' })),
+    names ? run('tasklist', ['/FO', 'CSV', '/NH']).catch(() => ({ stdout: '' })) : Promise.resolve({ stdout: '' }),
   ]);
   // netstat -p TCP only shows IPv4; also ask for TCPv6.
   const ns6 = await run('netstat', ['-ano', '-p', 'TCPv6']).catch(() => ({ stdout: '' }));
-  lastTasklist = parseTasklist(tl.stdout);
+  if (names) lastTasklist = parseTasklist(tl.stdout);
   return [...parseNetstat(ns.stdout), ...parseNetstat(ns6.stdout)].map((s) => ({
     ...s,
     processName: s.pid === 0 ? 'System Idle Process' : lastTasklist.get(s.pid)?.name ?? '(unknown)',

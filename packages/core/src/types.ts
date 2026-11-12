@@ -10,8 +10,10 @@ export interface PortEntry {
   processName: string;
   /** Full command line, when available. */
   command?: string;
-  /** Working directory of the process, when available (not on Windows). */
+  /** Working directory of the process. On Windows it is inferred (see cwdGuessed). */
   cwd?: string;
+  /** True when cwd was inferred (Windows: from the command line or the VS Code terminal), not reported by the OS. */
+  cwdGuessed?: boolean;
   /** Resident memory of the process in KB. */
   memoryKB?: number;
   /** CPU usage in percent (macOS/Linux only). */
