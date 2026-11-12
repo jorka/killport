@@ -1,0 +1,55 @@
+name: Release
+
+# Push a tag like v0.1.0 to publish. Each store is skipped when its token secret is not set:
+#   VSCE_PAT  - VS Code Marketplace (https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
+#   OVSX_PAT  - Open VSX, used by Cursor, Windsurf, VSCodium (https://open-vsx.org)
+#   NPM_TOKEN - npm, for `npx killport-mcp`
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      - name: Check the tag matches the package versions
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ext=$(node -p "require('./packages/vscode/package.json').version")
+          mcp=$(node -p "require('./packages/mcp/package.json').version")
+          [ "$tag" = "$ext" ] && [ "$tag" = "$mcp" ] || { echo "Tag $tag != extension $ext / mcp $mcp"; exit 1; }
+      - run: npm run package
+
+      - name: Publish to VS Code Marketplace
+        if: env.VSCE_PAT != ''
+        working-directory: packages/vscode
+        run: npx @vscode/vsce publish --packagePath *.vsix --pat "$VSCE_PAT"
+      - name: Publish to Open VSX
+        if: env.OVSX_PAT != ''
+        working-directory: packages/vscode
+        run: npx ovsx publish *.vsix --pat "$OVSX_PAT"
+      - name: Publish killport-mcp to npm
+        if: env.NODE_AUTH_TOKEN != ''
+        run: npm publish -w killport-mcp --access public --provenance
+
+      - name: GitHub release with the .vsix
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packages/vscode/*.vsix
+          generate_release_notes: true

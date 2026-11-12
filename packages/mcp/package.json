@@ -1,0 +1,40 @@
+{
+  "name": "killport-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets AI agents (Claude Code, Codex, Cursor, Gemini CLI, Copilot...) list listening ports and kill the process holding one.",
+  "license": "MIT",
+  "bin": {
+    "killport-mcp": "dist/server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "port",
+    "kill",
+    "kill-port",
+    "lsof",
+    "EADDRINUSE",
+    "claude",
+    "codex",
+    "cursor",
+    "docker"
+  ],
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "prepublishOnly": "node esbuild.mjs --minify"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@killport/core": "0.1.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "zod": "^4.0.0"
+  }
+}

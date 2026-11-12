@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.vsix
+packages/vscode/README.md
+packages/vscode/LICENSE
+.vscode-test/
+packages/vscode/CHANGELOG.md
+packages/mcp/LICENSE
