@@ -153,7 +153,14 @@ export async function switchPort(store: PortStore, port?: number, newPort?: numb
       progress.report({ message: 'starting' });
       let target = terminal;
       if (terminal && running) {
-        const done = await Promise.race([running.ended.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), 3000))]);
+        const endedWithin = (ms: number) => Promise.race([running.ended.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), ms))]);
+        let done = await endedWithin(process.platform === 'win32' ? 1500 : 3000);
+        // Windows: npm/yarn/pnpm are .cmd shims, and Ctrl+C makes cmd ask "Terminate batch job (Y/N)?".
+        // The server is already gone (port free) but the prompt waits: answer it instead of typing into it.
+        if (!done && process.platform === 'win32' && /^\s*(npm|npx|yarn|pnpm|pnpx)(\.cmd)?\s/i.test(baseCommand)) {
+          terminal.sendText('Y', true);
+          done = await endedWithin(3000);
+        }
         if (!done) target = undefined; // still busy (a wrapper that ignored Ctrl+C): don't type into it
       }
       target ??= vscode.window.createTerminal({ name: `${main.processName} :${newPort}`, cwd: main.cwd });

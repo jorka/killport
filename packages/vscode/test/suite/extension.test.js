@@ -198,7 +198,7 @@ describe('Killport extension', function () {
           ? `$env:ELECTRON_RUN_AS_NODE=1; & "${process.execPath}" -e "${script}"`
           : `ELECTRON_RUN_AS_NODE=1 "${process.execPath}" -e "${script}"`,
       );
-      await waitFor(async () => !(await isPortFree(port)), 15000, 'server in terminal to listen');
+      await waitFor(async () => !(await isPortFree(port)), 15000 * SLOW, 'server in terminal to listen');
       await ext.exports.refresh();
       const entry = ext.exports.getPorts().find((e) => e.port === port);
       assert.ok(entry, 'port should be listed');
@@ -268,10 +268,10 @@ require('http').createServer((q, s) => s.end('ok')).listen(port, '127.0.0.1');`;
         if (!integration) this.skip();
         const started = process.platform === 'win32' ? `$env:PORT=${from}; ${node('server.js')}` : `PORT=${from} ${node('server.js')}`;
         integration.executeCommand(started);
-        await waitFor(async () => !(await isPortFree(from)), 15000, 'server to listen');
+        await waitFor(async () => !(await isPortFree(from)), 15000 * SLOW, 'server to listen');
 
         const result = await vscode.commands.executeCommand('killport.switchPort', from, to, { confirm: false });
-        assert.strictEqual(result.ok, true, result.message);
+        assert.strictEqual(result.ok, true, `${result.message}\ncommand: ${result.command}`);
         assert.ok(result.command.includes(`PORT=${to}`), `command should set the new port: ${result.command}`);
         assert.strictEqual(await isPortFree(from), true, 'old port should be free');
         await ext.exports.refresh();
@@ -312,7 +312,7 @@ require('http').createServer((q, s) => s.end('ok')).listen(port, '127.0.0.1');`;
       const [from, to] = [await freePort(), await freePort()];
       const child = spawn(process.execPath, [path.join(process.env.KILLPORT_TEST_WORKSPACE, 'server.js'), '--port', String(from)], { cwd: process.env.KILLPORT_TEST_WORKSPACE, env: NODE_ENV, stdio: 'ignore' });
       children.push(child);
-      await waitFor(async () => !(await isPortFree(from)), 10000, 'server to listen');
+      await waitFor(async () => !(await isPortFree(from)), 10000 * SLOW, 'server to listen');
 
       const result = await vscode.commands.executeCommand('killport.switchPort', from, to, { command: node(`server.js --port ${to}`) });
       assert.strictEqual(result.ok, true, result.message);
@@ -320,7 +320,9 @@ require('http').createServer((q, s) => s.end('ok')).listen(port, '127.0.0.1');`;
       await ext.exports.refresh();
       const moved = ext.exports.getPorts().find((e) => e.port === to);
       assert.ok(moved, 'new port should be listening');
-      assert.ok(fs.realpathSync(moved.cwd) === fs.realpathSync(process.env.KILLPORT_TEST_WORKSPACE), 'should start in the original folder');
+      // realpathSync.native also expands Windows 8.3 short names (C:\\Users\\RUNNER~1\\...).
+      const same = (a, b) => fs.realpathSync.native(a).toLowerCase() === fs.realpathSync.native(b).toLowerCase();
+      assert.ok(same(moved.cwd, process.env.KILLPORT_TEST_WORKSPACE), `should start in the original folder (got ${moved.cwd})`);
       vscode.window.terminals.find((t) => t.name.endsWith(`:${to}`))?.dispose();
     });
   });
@@ -428,9 +430,13 @@ require('http').createServer((q, s) => s.end('ok')).listen(port, '127.0.0.1');`;
       const cmd = process.platform === 'win32'
         ? `$env:ELECTRON_RUN_AS_NODE=1; & "${process.execPath}" -e "${script}"`
         : `ELECTRON_RUN_AS_NODE=1 "${process.execPath}" -e "${script}"`;
-      integration.executeCommand(cmd);
+      const execution = integration.executeCommand(cmd);
+      let output = '';
+      void (async () => {
+        for await (const chunk of execution.read()) output += chunk;
+      })();
 
-      const conflict = await Promise.race([detected, sleep(30000).then(() => assert.fail('no conflict detected within 30s'))]);
+      const conflict = await Promise.race([detected, sleep(30000 * SLOW).then(() => assert.fail(`no conflict detected; terminal output was:\n${output.slice(-1500)}`))]);
       assert.strictEqual(conflict.kind, 'failed');
       assert.ok(conflict.holders.some((h) => h.pid === holder.pid), 'should name the process holding the port');
     } finally {
