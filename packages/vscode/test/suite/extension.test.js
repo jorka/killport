@@ -427,8 +427,10 @@ require('http').createServer((q, s) => s.end('ok')).listen(port, '127.0.0.1');`;
         });
       });
       const script = `require('http').createServer().listen(${port}, '127.0.0.1')`;
+      // On Windows, Code.exe is a GUI program: its error text never reaches the terminal. Dev servers run
+      // on node.exe (a console program), so use the real node there (CI installs it).
       const cmd = process.platform === 'win32'
-        ? `$env:ELECTRON_RUN_AS_NODE=1; & "${process.execPath}" -e "${script}"`
+        ? `node -e "${script}"`
         : `ELECTRON_RUN_AS_NODE=1 "${process.execPath}" -e "${script}"`;
       const execution = integration.executeCommand(cmd);
       let output = '';

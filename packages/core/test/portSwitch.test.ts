@@ -60,6 +60,13 @@ describe('rewriteCommandForPort', () => {
       expect(r('node server.js', { shell: 'pwsh' }).command).toBe('$env:PORT=3001; node server.js');
       expect(r('node server.js', { shell: 'cmd' }).command).toBe('set PORT=3001&& node server.js');
     });
+    it('makes quoted program paths runnable in PowerShell (call operator)', () => {
+      expect(r('"C:\\Program Files\\nodejs\\node.exe" server.js', { shell: 'pwsh' }).command).toBe('$env:PORT=3001; & "C:\\Program Files\\nodejs\\node.exe" server.js');
+      expect(r('"C:\\tools\\node.exe" server.js --port 3000', { shell: 'pwsh' }).command).toBe('& "C:\\tools\\node.exe" server.js --port 3001');
+      expect(r('npm run dev -- --port 3000', { shell: 'pwsh' }).command).toBe('npm run dev -- --port 3001');
+      expect(r('"C:\\tools\\node.exe" server.js', { shell: 'posix' }).command).toBe('PORT=3001 "C:\\tools\\node.exe" server.js');
+    });
+
     it('replaces an existing PORT prefix for another port', () => {
       expect(withPortEnv('PORT=4000 node a.js', 3001, 'posix')).toBe('PORT=3001 node a.js');
     });

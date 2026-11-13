@@ -57,21 +57,31 @@ export function detectTool(...commands: Array<string | undefined>): string | und
   return TOOLS.find((t) => t.match.test(text))?.name;
 }
 
+/**
+ * PowerShell treats a line starting with a quoted path as a string to print, not a program to run:
+ * `"C:\Program Files\nodejs\node.exe" app.js` needs the call operator, `& "C:\...\node.exe" app.js`.
+ */
+export function pwshRunnable(command: string): string {
+  const t = command.trimStart();
+  return t.startsWith('"') || t.startsWith("'") ? `& ${t}` : command;
+}
+
 /** Sets PORT for the command in the given shell's syntax. */
 export function withPortEnv(command: string, port: number, shell: ShellKind): string {
   const cmd = command.replace(/^\s*PORT=\d+\s+/, ''); // replace an existing PORT= prefix
-  if (shell === 'pwsh') return `$env:PORT=${port}; ${cmd}`;
+  if (shell === 'pwsh') return `$env:PORT=${port}; ${pwshRunnable(cmd)}`;
   if (shell === 'cmd') return `set PORT=${port}&& ${cmd}`;
   return `PORT=${port} ${cmd}`;
 }
 
 export function rewriteCommandForPort(
-  command: string,
+  rawCommand: string,
   oldPort: number,
   newPort: number,
   opts: { processCommand?: string; shell?: ShellKind } = {},
 ): PortRewrite {
   const shell = opts.shell ?? 'posix';
+  const command = shell === 'pwsh' ? pwshRunnable(rawCommand) : rawCommand;
   const old = escapeRe(String(oldPort));
 
   // 1. The old port is written in the command: change it there.
